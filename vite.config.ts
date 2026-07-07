@@ -25,23 +25,25 @@ for (const s of SERVICES) {
 for (const p of BLOG_POSTS) prerenderRoutes.push(`/blog/${p.slug}`);
 
 // The Lovable sandbox forces a Cloudflare preset and uses its own output
-// layout, so we only enable static prerendering + the Netlify nitro preset
-// when building outside the sandbox (i.e. on Netlify CI).
+// layout. Vercel needs Nitro's Vercel preset and should not use TanStack
+// prerendering; Netlify/static hosts use the static preset with prerendering.
 const isLovableSandbox = !!process.env.LOVABLE_SANDBOX || !!process.env.DEV_SERVER__PROJECT_PATH;
+const isVercel = !!process.env.VERCEL;
+const shouldPrerenderStatic = !isLovableSandbox && !isVercel;
 
 export default defineConfig({
   tanstackStart: {
     server: { entry: "server" },
-    ...(isLovableSandbox
-      ? {}
-      : {
+    ...(shouldPrerenderStatic
+      ? {
           prerender: {
             enabled: true,
             crawlLinks: true,
             routes: prerenderRoutes,
           },
           pages: prerenderRoutes.map((path) => ({ path, prerender: { enabled: true } })),
-        }),
+        }
+      : {}),
   },
-  nitro: isLovableSandbox ? undefined : { preset: "static" },
+  nitro: isLovableSandbox ? undefined : { preset: isVercel ? "vercel" : "static" },
 });
